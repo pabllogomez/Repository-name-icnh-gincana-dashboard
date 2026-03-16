@@ -2,10 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# -----------------------------
 # CONFIGURAÇÃO
-# -----------------------------
-
 st.set_page_config(
     page_title="Gincana ICNH",
     page_icon="🏆",
@@ -17,10 +14,7 @@ SHEET_ID = "1baQ45Hd6-4BYLP6dDx7KX8zOknbPO2td5Y37KFbBWjw"
 
 url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
 
-# -----------------------------
 # CARREGAR DADOS
-# -----------------------------
-
 df = pd.read_csv(url)
 
 df["Data"] = pd.to_datetime(df["Data"], dayfirst=True)
@@ -36,30 +30,20 @@ df["TrimestreNome"] = df["Trimestre"].map({
 
 TRIMESTRE_ATUAL = pd.Timestamp.now().quarter
 
-# cores fixas para gráficos
-CORES_GRUPOS = {
-    "CORINTIAS": "#000000",
-    "PALMEIRA": "#006400",
-    "SANTOS": "#FFFFFF",
-    "SAO PAULO": "#FF0000"
-}
-
-# -----------------------------
 # TÍTULO
-# -----------------------------
-
 st.title("🏆 Gincana ICNH")
 
-tab1, tab2, tab3 = st.tabs([
+# ABAS
+tab1, tab2, tab3, tab4 = st.tabs([
     "🏅 Ranking Atual",
     "📜 Histórico",
-    "📊 Gráficos"
+    "📊 Gráficos",
+    "🎯 Tipos de Pontos"
 ])
 
 # -----------------------------
-# TAB 1
+# TAB 1 - RANKING GERAL
 # -----------------------------
-
 with tab1:
 
     col1, col2, col3 = st.columns(3)
@@ -100,11 +84,9 @@ with tab1:
 
     st.divider()
 
-    st.subheader(f"👥 Ranking de Grupos — {df['TrimestreNome'].unique()[TRIMESTRE_ATUAL-1]}")
+    st.subheader("👥 Ranking de Grupos")
 
-    df_trimestre = df[df["Trimestre"] == TRIMESTRE_ATUAL]
-
-    ranking_grupos = df_trimestre.groupby(
+    ranking_grupos = df.groupby(
         "Grupo"
     )["Pontos"].sum().reset_index()
 
@@ -118,7 +100,6 @@ with tab1:
 # -----------------------------
 # TAB 2 - HISTÓRICO
 # -----------------------------
-
 with tab2:
 
     st.subheader("📜 Resultados por Trimestre")
@@ -155,7 +136,6 @@ with tab2:
 # -----------------------------
 # TAB 3 - GRÁFICOS
 # -----------------------------
-
 with tab3:
 
     st.subheader("📊 Comparação entre Grupos")
@@ -169,7 +149,6 @@ with tab3:
         x="Grupo",
         y="Pontos",
         color="Grupo",
-        color_discrete_map=CORES_GRUPOS,
         text="Pontos"
     )
 
@@ -190,8 +169,62 @@ with tab3:
         x="TrimestreNome",
         y="Pontos",
         color="Grupo",
-        markers=True,
-        color_discrete_map=CORES_GRUPOS
+        markers=True
     )
 
     st.plotly_chart(fig2, use_container_width=True)
+
+# -----------------------------
+# TAB 4 - RANKING POR TIPO DE PONTO
+# -----------------------------
+with tab4:
+
+    st.subheader("🎯 Ranking por Tipo de Pontos")
+
+    if "Descricao" in df.columns:
+
+        tipos_pontos = sorted(df["Descricao"].dropna().unique())
+
+        tipo_selecionado = st.selectbox(
+            "Escolha o tipo de pontuação",
+            tipos_pontos
+        )
+
+        df_tipo = df[df["Descricao"] == tipo_selecionado]
+
+        ranking_tipo = df_tipo.groupby("Nome")["Pontos"].sum().reset_index()
+
+        ranking_tipo = ranking_tipo.sort_values(
+            "Pontos",
+            ascending=False
+        )
+
+        ranking_tipo["Posição"] = range(1, len(ranking_tipo) + 1)
+
+        col1, col2 = st.columns([3,1])
+
+        with col1:
+
+            st.dataframe(
+                ranking_tipo,
+                use_container_width=True
+            )
+
+        with col2:
+
+            st.subheader("🏆 Top 3")
+
+            top3 = ranking_tipo.head(3)
+
+            if len(top3) > 0:
+                st.success(f"🥇 {top3.iloc[0]['Nome']} — {top3.iloc[0]['Pontos']} pts")
+
+            if len(top3) > 1:
+                st.info(f"🥈 {top3.iloc[1]['Nome']} — {top3.iloc[1]['Pontos']} pts")
+
+            if len(top3) > 2:
+                st.warning(f"🥉 {top3.iloc[2]['Nome']} — {top3.iloc[2]['Pontos']} pts")
+
+    else:
+
+        st.warning("Coluna 'Descricao' não encontrada na planilha.")
